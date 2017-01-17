@@ -1,0 +1,16 @@
+<RCC>
+    <qresource prefix="/image">
+        <file>img/79.png</file>
+        <file>img/258.png</file>
+        <file>img/578.png</file>
+        <file>img/696.png</file>
+        <file>img/809.png</file>
+        <file>img/6961.png</file>
+        <file>img/7911.png</file>
+        <file>img/8090.png</file>
+        <file>img/201008192332405841.jpg</file>
+        <file>img/backGround.png</file>
+        <file>img/iCute.png</file>
+        <file>img/psds17397.png</file>
+    </qresource>
+</RCC>

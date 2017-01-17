@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 3.4.2, 2017-01-09T15:29:38. -->
+<!-- Written by QtCreator 3.4.2, 2017-01-17T15:57:45. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -228,7 +228,7 @@
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">LeatherCOM</value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">LeatherCOM2</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4RunConfiguration:E:/桌面备份--2016年8月30日/leathercom/LeatherCOM/LeatherCOM.pro</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4RunConfiguration:F:/MyData/GitHubData/QtSerial/LeatherCOM_SerialV2.0/LeatherCOM.pro</value>
     <value type="QString" key="Qt4ProjectManager.Qt4RunConfiguration.CommandLineArguments"></value>
     <value type="QString" key="Qt4ProjectManager.Qt4RunConfiguration.ProFile">LeatherCOM.pro</value>
     <value type="bool" key="Qt4ProjectManager.Qt4RunConfiguration.UseDyldImageSuffix">false</value>

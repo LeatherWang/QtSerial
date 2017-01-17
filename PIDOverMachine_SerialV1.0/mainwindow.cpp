@@ -25,7 +25,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_Com_Monitor->setUpNotifications();
     //设置串口所需的Items
     {
-    foreach (QextPortInfo info, QextSerialEnumerator::getPorts())
+    foreach (QextPortInfo info, QextSerialEnumerator::getPorts())//利用此循环将serialList显示在portBox中
         ui->portBox->addItem(info.portName);
 
     ui->portBox->setEditable(false);//set ture to make sure user can input their own port name!

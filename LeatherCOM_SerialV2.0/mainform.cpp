@@ -21,20 +21,10 @@ mainform::mainform(QWidget *parent) :
 
     m_Com = new QextSerialPort(QextSerialPort::EventDriven,this);
     m_Com->setPortName("-1");
-    m_Com_Monitor = new QextSerialEnumerator();
+    m_Com_Monitor = new QextSerialEnumerator();//串口监视器，发布串口增加、移除等信号
     m_Com_Monitor->setUpNotifications();
 
     ui->textBrowser->setOpenExternalLinks(true);
-    //设置表格列宽
-    ui->tableWidget->setColumnWidth(0,30);
-    ui->tableWidget->setColumnWidth(1,200);
-    ui->tableWidget->setColumnWidth(2,30);
-    ui->tableWidget->setColumnWidth(3,200);
-    ui->tableWidget->setColumnWidth(4,30);
-    //设置表格整行选取
-    ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
-
 
     //初始化led灯
     m_led = new HLed;
@@ -43,10 +33,10 @@ mainform::mainform(QWidget *parent) :
     ui->horizontalLayout_6->setStretch(0,1);
     ui->horizontalLayout_6->setStretch(1,4);
 
-    foreach (QextPortInfo info, QextSerialEnumerator::getPorts())
+    foreach (QextPortInfo info, QextSerialEnumerator::getPorts())//利用此循环将serialList显示在portBox中
         ui->portBox->addItem(info.portName);
-    //make sure user can input their own port name!
-    ui->portBox->setEditable(true);
+    //set true to make sure user can input their own port name!
+    ui->portBox->setEditable(false);
 
     ui->baudRateBox->addItem("110", BAUD110);
     ui->baudRateBox->addItem("300", BAUD300);
@@ -60,18 +50,19 @@ mainform::mainform(QWidget *parent) :
     ui->baudRateBox->addItem("57600", BAUD57600);
     ui->baudRateBox->addItem("115200", BAUD115200);
 
-#ifdef Q_WS_WIN
-    ui->baudRateBox->addItem("14400", BAUD14400);
-    ui->baudRateBox->addItem("56000", BAUD56000);
-    ui->baudRateBox->addItem("128000", BAUD128000);
-    ui->baudRateBox->addItem("256000", BAUD256000);
-#endif
+    #ifdef Q_WS_WIN
+        ui->baudRateBox->addItem("14400", BAUD14400);
+        ui->baudRateBox->addItem("56000", BAUD56000);
+        ui->baudRateBox->addItem("128000", BAUD128000);
+        ui->baudRateBox->addItem("256000", BAUD256000);
+    #endif
 
     ui->baudRateBox->setCurrentIndex(10);
 
     ui->parityBox->addItem("NONE", PAR_NONE);
     ui->parityBox->addItem("ODD", PAR_ODD);
     ui->parityBox->addItem("EVEN", PAR_EVEN);
+    ui->parityBox->setCurrentIndex(0);
 
     ui->dataBitsBox->addItem("5", DATA_5);
     ui->dataBitsBox->addItem("6", DATA_6);
@@ -81,6 +72,7 @@ mainform::mainform(QWidget *parent) :
 
     ui->stopBitsBox->addItem("1", STOP_1);
     ui->stopBitsBox->addItem("2", STOP_2);
+    ui->stopBitsBox->setCurrentIndex(0);
 
     connect(ui->baudRateBox,SIGNAL(currentIndexChanged(int)),this,SLOT(buadRate_changed(int)));
     connect(ui->portBox,SIGNAL(currentIndexChanged(QString)),this,SLOT(portName_changed(QString)));
@@ -88,9 +80,15 @@ mainform::mainform(QWidget *parent) :
     connect(ui->stopBitsBox,SIGNAL(currentIndexChanged(int)),this,SLOT(stopBits_changed(int)));
     connect(ui->parityBox,SIGNAL(currentIndexChanged(int)),this,SLOT(parity_changed(int)));
 
-    //初始化自动发送定时器
-    autoTimer = new QTimer(this);
-    connect(autoTimer,SIGNAL(timeout()),this,SLOT(autoWrite()));
+    //设置表格列宽
+    ui->tableWidget->setColumnWidth(0,30);
+    ui->tableWidget->setColumnWidth(1,200);
+    ui->tableWidget->setColumnWidth(2,30);
+    ui->tableWidget->setColumnWidth(3,200);
+    ui->tableWidget->setColumnWidth(4,30);
+    //设置表格整行选取
+    ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
 
     //初始化自动发送的16进制选择按钮
     ui->tableWidget->setRowCount(10);
@@ -118,9 +116,13 @@ mainform::mainform(QWidget *parent) :
         isuseCheck.append(useCheck);
     }
 
-    currentCommand = -1;
+    //查询上一条指令配置
+    currentCommand = -1;//索引，指向当前要发送数据条
     checkCommand();
 
+    //初始化自动发送定时器
+    autoTimer = new QTimer(this);
+    connect(autoTimer,SIGNAL(timeout()),this,SLOT(autoWrite()));
     connect(m_Com,SIGNAL(readyRead()),this,SLOT(readMyCom()));
     connect(m_Com_Monitor,SIGNAL(deviceDiscovered(const QextPortInfo&)),this,SLOT(hasComDiscovered(const QextPortInfo&)));
     connect(m_Com_Monitor,SIGNAL(deviceRemoved(const QextPortInfo&)),this,SLOT(hasComRemoved(const QextPortInfo&)));
@@ -131,113 +133,9 @@ mainform::~mainform()
     delete ui;
 }
 
-/********************************************
-  *类型：槽
-  *对应信号：读数据定时器时间到
-  *功能：从串口读取数据，并显示在界面
-        显示时要根据是否16进制而做改变
-  *******************************************/
-QByteArray byteArray;
-QByteArray zhentou(2,0XAA);
-void mainform::readMyCom()    //读串口发来的数据，并显示出来
-{
-    if(m_Com->bytesAvailable()>0)
-    {
-        //保持滚动条在最下方
-        QByteArray data;
-        ui->textBrowser->moveCursor(QTextCursor::End);
-        if(ui->checkBox->isChecked())
-        {
-            QString str;
-            data = m_Com->readAll();
-            m_number_recive += data.size();
-            for(int i=0;i<data.size();i++)
-            {
-                if(QString::number(quint8(data.at(i)),16).toUpper().length()==1)
-                    str.append(QString("0")+QString::number(quint8(data.at(i)),16).toUpper()+QString(" "));
-                else
-                    str.append(QString::number(quint8(data.at(i)),16).toUpper()+QString(" "));
-            }
-            ui->textBrowser->insertHtml(toBlueText(str));
-
-            byteArray.append(data);
-            if(byteArray.size() >= 7)//TODO
-            {
-               // qDebug()<<byteArray;
-                if(byteArray.contains(zhentou))
-                {
-                    QByteArray byteArray_1 =  byteArray.mid(byteArray.indexOf(zhentou),7);
-                    if(byteArray_1.at(2) == 0x05)
-                        byteArray_1 = byteArray.mid(byteArray.indexOf(zhentou),11);
-                    Leather_Data_Receive(byteArray_1);
-                }
-                byteArray.clear();
-            }
-        }
-        else
-        {
-            data = m_Com->readAll();
-            m_number_recive += data.size();
-            ui->textBrowser->insertHtml(toBlueText(QString::fromLocal8Bit(data)));
-        }
-        AutoReply(data);
-        showCountNumber();
-    }
-}
-
-void mainform::Leather_Data_Receive(QByteArray data)
-{
-
-        quint8 sum = 0;
-        quint8 num = data.size();
-        quint16 data_temp = 0;
-        qDebug()<<data;
-        for(quint8 i=0;i<(num-1);i++)
-            sum += (quint8(data.at(i)));
-        if(!(sum == quint8(data.at(num-1))))	return;		//判断sum，校验--Leather
-        if(!(quint8(data.at(0))==0xAA && quint8(data.at(1))==0xAA))		return;		//判断帧头--Leather
-        if(quint8(data.at(2)) == 0X01)//温度
-        {
-            data_temp = quint8(data.at(4));
-            data_temp <<= 8;
-            data_temp +=quint8(data.at(5));
-            ui->label_6->setText(QString("室内温度：%1°C").arg(data_temp));
-        }
-        if(quint8(data.at(2)) == 0X02)//湿度
-        {
-            data_temp = quint8(data.at(4));
-            data_temp <<= 8;
-            data_temp +=quint8(data.at(5));
-            ui->label_7->setText(QString("空气湿度：%1%").arg(data_temp));
-        }
-        if(quint8(data.at(2)) == 0X03)//光照
-        {
-
-            data_temp = quint8(data.at(4));
-            data_temp <<= 8;
-            data_temp +=quint8(data.at(5));
-            ui->label_8->setText(QString("光照强度：%1cd").arg(data_temp));
-        }
-        if(quint8(data.at(2)) == 0X04)//土壤湿度
-        {
-            data_temp = quint8(data.at(4));
-            data_temp <<= 8;
-            data_temp +=quint8(data.at(5));
-            ui->label_9->setText(QString("土壤湿度：%1%").arg((1050-data_temp)/10));
-        }
-        if(quint8(data.at(2)) == 0X05)//时间
-        {
-//            data_temp = (quint8(data.at(4)));
-//            data_temp <<= 8;
-//            data_temp +=quint8(data.at(5));
-            ui->label_10->setText(QString("时间：%1时%2分%3秒").arg((quint8(data.at(4)))<<8 | (quint8(data.at(5))))
-                                  .arg((quint8(data.at(6)))<<8 | (quint8(data.at(7))))
-                                  .arg((quint8(data.at(8)))<<8 | (quint8(data.at(9)))));//(quint8(data.at(6)))<<8 | (quint8(data.at(7)))
-        }
-}
 /****************************************
   *类型：       槽
-  *对应信号：    开关按钮点击
+  *对应信号：    串口开关按钮点击
   *功能：       如果串口已打开，将其关闭,关闭定时器。
                否则设置串口属性，打开串口，打开定时器。
   ***************************************/
@@ -247,7 +145,8 @@ void mainform::on_pushButton_openClose_clicked()
     {
         m_Com->close();
         m_led->turnOff();
-    }else
+    }
+    else
     {
         m_Com->setPortName(ui->portBox->itemText(ui->portBox->currentIndex()));
         m_Com->setBaudRate((BaudRateType)ui->baudRateBox->itemData(ui->baudRateBox->currentIndex()).toInt());
@@ -259,7 +158,8 @@ void mainform::on_pushButton_openClose_clicked()
         {
             m_led->turnOn();
             qDebug()<<"open Port succeed!";
-        }else
+        }
+        else
             qDebug()<<"open Port failed";
     }
 }
@@ -283,19 +183,16 @@ void mainform::buadRate_changed(int idx)
 {
     m_Com->setBaudRate((BaudRateType)ui->baudRateBox->itemData(idx).toInt());
 }
-
 //设置当前停止位
 void mainform::stopBits_changed(int idx)
 {
     m_Com->setStopBits((StopBitsType)ui->stopBitsBox->itemData(idx).toInt());
 }
-
 //设置当前数据位
 void mainform::dataBits_changed(int idx)
 {
     m_Com->setDataBits((DataBitsType)ui->dataBitsBox->itemData(idx).toInt());
 }
-
 //设置当前校验位
 void mainform::parity_changed(int idx)
 {
@@ -318,9 +215,9 @@ void mainform::on_pushButton_3_clicked()
             m_Command.append(QString("#######")+ui->textEdit->toPlainText());
         else
             m_Command.append(ui->textEdit->toPlainText());
-        writeCommand(m_Command.value(m_Command.size()-1));
+        writeCommand(m_Command.value(m_Command.size()-1));//m_Command.size()返回QStringList的list数目
         //剔除重复项
-        if(m_Command.value(m_Command.size()-1)==m_Command.value(m_Command.size()-2))
+        if(m_Command.value(m_Command.size()-1)==m_Command.value(m_Command.size()-2))//前后两次发送数据相同则不记录
             m_Command.removeAt(m_Command.size()-1);
         currentCommand = m_Command.size();
         checkCommand();
@@ -341,15 +238,16 @@ void mainform::writeCommand(QString str)
     {
         str = str.right(str.size()-7);
         bool ok;
-        QByteArray data;
-        QStringList list = str.split(" ");
+        QByteArray data;//使用字节矩阵write
+        QStringList list = str.split(" ");//分割数据
         for(int i =0;i<list.size();i++)
         {
             char a = list.value(i).toInt(&ok,16);
             if(ok)
             {
                 data.append(a);
-            }else
+            }
+            else
             {
                 QMessageBox::warning(this,"提示","非法的16进制数，请重新输入！");
                 return ;
@@ -361,7 +259,8 @@ void mainform::writeCommand(QString str)
             ui->textBrowser->insertHtml(toBlackText(str));
             m_number_send += data.size();
         }
-    }else
+    }
+    else
     {
         m_Com->write(str.toLocal8Bit());
         if(m_Com->isOpen()&&ui->checkBox_4->isChecked())
@@ -400,7 +299,8 @@ void mainform::on_toolButton_2_clicked()
     {
         ui->textEdit->setText(m_Command.value(currentCommand).right(m_Command.value(currentCommand).size()-7));
         ui->checkBox_2->setChecked(true);
-    }else
+    }
+    else
     {
         ui->textEdit->setText(m_Command.value(currentCommand));
         ui->checkBox_2->setChecked(false);
@@ -440,7 +340,7 @@ void mainform::checkCommand()
     ui->toolButton_2->setEnabled(true);
     if(currentCommand<=0)
         ui->toolButton_2->setEnabled(false);
-    if(currentCommand>=m_Command.size())
+    if(currentCommand>=m_Command.size())//到头了
         ui->toolButton->setEnabled(false);
     if(m_Command.size()==0)
     {
@@ -518,7 +418,8 @@ void mainform::AutoReply(QByteArray data)
                     }
                     writeCommand(sendStr);
                 }
-            }else
+            }
+            else
             {
                 QString str = QString::fromLocal8Bit(data);
                 if(str==ui->tableWidget->item(i,1)->text())
@@ -601,7 +502,6 @@ void mainform::hasComRemoved(const QextPortInfo &info)
 {
     if(info.portName==ui->portBox->currentText())
     {
-//        readTimer->stop();
         m_led->turnOff();
     }
     for(int i=0;i<ui->portBox->count();i++)
@@ -662,6 +562,113 @@ void mainform::stringToHtml(QString &str,QColor crl)
     QString strC(array.toHex());
     str = QString("<span style=\" color:#%1;\">%2</span>").arg(strC).arg(str);
 }
+
+
+/********************************************
+  *类型：槽
+  *对应信号：读数据定时器时间到
+  *功能：从串口读取数据，并显示在界面
+        显示时要根据是否16进制而做改变
+  *******************************************/
+QByteArray byteArray;
+QByteArray zhentou(2,0XAA);
+void mainform::readMyCom()    //读串口发来的数据，并显示出来
+{
+    if(m_Com->bytesAvailable()>0)
+    {
+        //保持滚动条在最下方
+        QByteArray data;
+        ui->textBrowser->moveCursor(QTextCursor::End);
+        data = m_Com->readAll();
+        m_number_recive += data.size();
+        if(ui->checkBox->isChecked())
+        {
+            QString str;
+            for(int i=0;i<data.size();i++)
+            {
+                if(QString::number(quint8(data.at(i)),16).toUpper().length()==1)//16进制字母均大写
+                    str.append(QString("0")+QString::number(quint8(data.at(i)),16).toUpper()+QString(" "));
+                else
+                    str.append(QString::number(quint8(data.at(i)),16).toUpper()+QString(" "));
+            }
+            ui->textBrowser->insertHtml(toBlueText(str));
+
+/****************************** Start user code for include. **********************************/
+            byteArray.append(data);
+            if(byteArray.size() >= 7)//TODO
+            {
+               // qDebug()<<byteArray;
+                if(byteArray.contains(zhentou))
+                {
+                    QByteArray byteArray_1 =  byteArray.mid(byteArray.indexOf(zhentou),7);
+                    if(byteArray_1.at(2) == 0x05)
+                        byteArray_1 = byteArray.mid(byteArray.indexOf(zhentou),11);
+                    Leather_Data_Receive(byteArray_1);
+                }
+                byteArray.clear();
+            }
+/********************************* End user code. *********************************************/
+        }
+        else
+        {
+            ui->textBrowser->insertHtml(toBlueText(QString::fromLocal8Bit(data)));
+        }
+        AutoReply(data);//调用自动回复函数
+        showCountNumber();
+    }
+}
+
+/****************************** Start user code for include. **********************************/
+void mainform::Leather_Data_Receive(QByteArray data)
+{
+        quint8 sum = 0;
+        quint8 num = data.size();
+        quint16 data_temp = 0;
+        qDebug()<<data;
+        for(quint8 i=0;i<(num-1);i++)
+            sum += (quint8(data.at(i)));
+        if(!(sum == quint8(data.at(num-1))))	return;		//判断sum，校验--Leather
+        if(!(quint8(data.at(0))==0xAA && quint8(data.at(1))==0xAA))		return;		//判断帧头--Leather
+        if(quint8(data.at(2)) == 0X01)//温度
+        {
+            data_temp = quint8(data.at(4));
+            data_temp <<= 8;
+            data_temp +=quint8(data.at(5));
+            ui->label_6->setText(QString("室内温度：%1°C").arg(data_temp));
+        }
+        if(quint8(data.at(2)) == 0X02)//湿度
+        {
+            data_temp = quint8(data.at(4));
+            data_temp <<= 8;
+            data_temp +=quint8(data.at(5));
+            ui->label_7->setText(QString("空气湿度：%1%").arg(data_temp));
+        }
+        if(quint8(data.at(2)) == 0X03)//光照
+        {
+
+            data_temp = quint8(data.at(4));
+            data_temp <<= 8;
+            data_temp +=quint8(data.at(5));
+            ui->label_8->setText(QString("光照强度：%1cd").arg(data_temp));
+        }
+        if(quint8(data.at(2)) == 0X04)//土壤湿度
+        {
+            data_temp = quint8(data.at(4));
+            data_temp <<= 8;
+            data_temp +=quint8(data.at(5));
+            ui->label_9->setText(QString("土壤湿度：%1%").arg((1050-data_temp)/10));
+        }
+        if(quint8(data.at(2)) == 0X05)//时间
+        {
+//            data_temp = (quint8(data.at(4)));
+//            data_temp <<= 8;
+//            data_temp +=quint8(data.at(5));
+            ui->label_10->setText(QString("时间：%1时%2分%3秒").arg((quint8(data.at(4)))<<8 | (quint8(data.at(5))))
+                                  .arg((quint8(data.at(6)))<<8 | (quint8(data.at(7))))
+                                  .arg((quint8(data.at(8)))<<8 | (quint8(data.at(9)))));//(quint8(data.at(6)))<<8 | (quint8(data.at(7)))
+        }
+}
+
 bool openCloseFlag = false;
 void mainform::on_openMotorButton_clicked()
 {
@@ -713,4 +720,4 @@ void mainform::Leather_Data_Send(bool my_switch_1, bool my_switch_2, quint16 spe
 
     m_Com->write(array);
 }
-
+/********************************* End user code. *********************************************/
