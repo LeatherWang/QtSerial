@@ -334,7 +334,7 @@ p, li { white-space: pre-wrap; }
              <string/>
             </property>
             <property name="icon">
-             <iconset resource="image.qrc">
+             <iconset>
               <normaloff>:/image/img/809.png</normaloff>:/image/img/809.png</iconset>
             </property>
             <property name="iconSize">
@@ -354,7 +354,7 @@ p, li { white-space: pre-wrap; }
              <string>...</string>
             </property>
             <property name="icon">
-             <iconset resource="image.qrc">
+             <iconset>
               <normaloff>:/image/img/8090.png</normaloff>:/image/img/8090.png</iconset>
             </property>
             <property name="iconSize">
@@ -698,8 +698,6 @@ p, li { white-space: pre-wrap; }
   <widget class="QStatusBar" name="statusBar"/>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <resources>
-  <include location="image.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

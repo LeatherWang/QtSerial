@@ -1,27 +1,21 @@
 #-------------------------------------------------
 #
-# Project created by QtCreator 2016-07-10T17:09:00
+# Project created by QtCreator 2016-08-03T14:42:26
 #
 #-------------------------------------------------
 
-QT       += core gui serialport
+QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-TARGET = LeatherCOM
+TARGET = PIDOverMachine
 TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        mainform.cpp \
-    hled.cpp
+        mainwindow.cpp
 
-HEADERS  += mainform.h \
-    hled.h
+HEADERS  += mainwindow.h
 
-FORMS    += \
-    mainform.ui
+FORMS    += mainwindow.ui
 include(./qextserialport-1.2beta2/src/qextserialport.pri)
-
-RESOURCES += \
-    image.qrc

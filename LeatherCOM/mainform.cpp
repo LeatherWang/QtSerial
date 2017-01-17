@@ -290,13 +290,11 @@ void mainform::stopBits_changed(int idx)
     m_Com->setStopBits((StopBitsType)ui->stopBitsBox->itemData(idx).toInt());
 }
 
-
 //设置当前数据位
 void mainform::dataBits_changed(int idx)
 {
     m_Com->setDataBits((DataBitsType)ui->dataBitsBox->itemData(idx).toInt());
 }
-
 
 //设置当前校验位
 void mainform::parity_changed(int idx)
